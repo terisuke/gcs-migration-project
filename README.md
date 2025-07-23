@@ -1,5 +1,7 @@
 # GCS Migration Tool
 
+[日本語版README](README_ja.md)
+
 A robust and automated tool for migrating Google Cloud Storage (GCS) buckets between different Google Cloud Platform projects with different account ownership.
 
 ## 🌟 Features
@@ -63,7 +65,8 @@ gcs-migration-project/
 ├── .env.example           # Environment template
 ├── .gitignore            # Git ignore rules
 ├── CLAUDE.md             # AI assistant guidance
-└── README.md             # This file
+├── README.md             # This file
+└── README_ja.md          # Japanese README
 ```
 
 ## ⚙️ Configuration
