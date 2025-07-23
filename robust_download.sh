@@ -164,9 +164,20 @@ analyze_results() {
     local status_file="$2"
     local failed_file="$3"
     
-    local skipped_count=$(grep -c "SKIPPED_EMPTY:" "$status_file" || echo "0")
-    local success_count=$(grep -c "SUCCESS:" "$status_file" || echo "0")
-    local failed_count=$(grep -c "FAILED:" "$status_file" || echo "0")
+    local skipped_count=$(grep -c "SKIPPED_EMPTY:" "$status_file" 2>/dev/null || echo "0")
+    local success_count=$(grep -c "SUCCESS:" "$status_file" 2>/dev/null || echo "0")
+    local failed_count=$(grep -c "FAILED:" "$status_file" 2>/dev/null || echo "0")
+    
+    # 数値のみを抽出（改行や空白を除去）
+    skipped_count=$(echo "$skipped_count" | tr -d '\n' | tr -d ' ')
+    success_count=$(echo "$success_count" | tr -d '\n' | tr -d ' ')
+    failed_count=$(echo "$failed_count" | tr -d '\n' | tr -d ' ')
+    
+    # 空の場合は0を設定
+    skipped_count=${skipped_count:-0}
+    success_count=${success_count:-0}
+    failed_count=${failed_count:-0}
+    
     local total_count=$((success_count + skipped_count + failed_count))
     
     echo -e "\n${BLUE}=== ダウンロード完了 ===${NC}"
@@ -180,7 +191,10 @@ analyze_results() {
     fi
     
     # 最終確認
-    local final_failed=$(grep -c "FAILED:" "$status_file" || echo "0")
+    local final_failed=$(grep -c "FAILED:" "$status_file" 2>/dev/null || echo "0")
+    final_failed=$(echo "$final_failed" | tr -d '\n' | tr -d ' ')
+    final_failed=${final_failed:-0}
+    
     local processed_count=$((success_count + skipped_count))
     
     if [ $final_failed -eq 0 ]; then
