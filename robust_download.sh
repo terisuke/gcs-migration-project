@@ -66,8 +66,11 @@ main() {
         exit 1
     fi
     
-    # バケット配列作成
-    mapfile -t bucket_array <<< "$buckets"
+    # バケット配列作成（bash 3.2互換）
+    local bucket_array=()
+    while IFS= read -r line; do
+        [ -n "$line" ] && bucket_array+=("$line")
+    done <<< "$buckets"
     local total_buckets=${#bucket_array[@]}
     
     log_info "見つかったバケット数: ${total_buckets}"

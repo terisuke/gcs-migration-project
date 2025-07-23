@@ -15,7 +15,7 @@ A robust and automated tool for migrating Google Cloud Storage (GCS) buckets bet
 ## 📋 Prerequisites
 
 - Google Cloud SDK (`gcloud` and `gsutil`)
-- Bash 4.0+
+- Bash 3.2+ (compatible with macOS default)
 - Storage Admin role in both source and destination projects
 - macOS or Linux environment
 
