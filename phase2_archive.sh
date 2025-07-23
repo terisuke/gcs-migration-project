@@ -169,14 +169,12 @@ create_archive() {
     if command -v pv >/dev/null 2>&1; then
         # pvコマンドがある場合はプログレスバー表示
         tar cf - "$backup_name" | \
-            pv -s $(du -sb "$backup_name" | awk '{print $1}') | \
+            pv -s $(du -sk "$backup_name" | awk '{print $1*1024}') | \
             gzip -${compression_level} > "$archive_name"
     else
-        # pvがない場合は進捗ドット表示
-        tar czf "$archive_name" "$backup_name" \
-            --checkpoint=1000 \
-            --checkpoint-action=dot \
-            --gzip-compression-level=${compression_level}
+        # pvがない場合は通常のtar（macOS互換）
+        export GZIP="-${compression_level}"
+        tar czf "$archive_name" "$backup_name"
         echo ""
     fi
     
@@ -201,7 +199,7 @@ calculate_compression_ratio() {
     local archive_path="$2"
     
     if command -v bc >/dev/null 2>&1; then
-        local original_bytes=$(du -sb "$work_dir" | cut -f1)
+        local original_bytes=$(du -sk "$work_dir" | awk '{print $1*1024}')
         local archive_bytes=$(stat -f%z "$archive_path" 2>/dev/null || stat -c%s "$archive_path" 2>/dev/null)
         
         if [ -n "$archive_bytes" ] && [ "$original_bytes" -gt 0 ]; then

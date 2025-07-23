@@ -34,9 +34,9 @@ if ! make robust-download; then
     exit 1
 fi
 
-# フェーズ2: アーカイブ作成
+# フェーズ2: アーカイブ作成（自動化版を使用）
 echo -e "\n${BLUE}=== フェーズ2: アーカイブ作成 ===${NC}"
-if ! make phase2; then
+if ! ./phase2_archive_auto.sh; then
     echo -e "${RED}エラー: アーカイブ作成フェーズが失敗しました${NC}"
     exit 1
 fi
