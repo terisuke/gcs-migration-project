@@ -1,0 +1,89 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Credentials and Secrets
+*credentials*.json
+*service-account*.json
+*key*.json
+*secret*
+.gcloud/
+gcloud-config/
+
+# Personal/Sensitive Information
+*company@*
+*cor-jp.com*
+*u-dake.com*
+
+# Download and Archive Directories
+yolov8environment_backup_*/
+download_*/
+archive_*/
+restore_*/
+/tmp/
+
+# Log Files
+*.log
+download_progress.log
+download_manifest.txt
+download_status.txt
+
+# Archive Files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.zip
+*.7z
+
+# Backup Files
+*.bak
+*.backup
+*~
+*.swp
+*.swo
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE Files
+.idea/
+.vscode/
+*.iml
+.project
+.settings/
+
+# Temporary Files
+*.tmp
+*.temp
+.cache/
+
+# Test Files
+.test_dir
+.test_archive
+test_download.log
+test_*/
+
+# Python (if adding Python scripts later)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.Python
+
+# Local Notes
+notes/
+TODO.md
+NOTES.md
+
+# Keep these files
+!.env.example
+!.gitignore
+!README.md
+!CLAUDE.md
+!Makefile
+!phase*.sh
+!advanced_restore.sh

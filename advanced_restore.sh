@@ -2,15 +2,22 @@
 
 # ===============================================
 # 高度な復元スクリプト
-# u-dakeプロジェクトのアーカイブから柔軟に復元
+# デスティネーションプロジェクトのアーカイブから柔軟に復元
 # ===============================================
 
 set -euo pipefail
 
-# 設定
-ARCHIVE_PROJECT="u-dake"
-ARCHIVE_BUCKET="archive"
-DEFAULT_RESTORE_DIR="/tmp/gcs_restore"
+# 環境変数の読み込み
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
+# 設定 (環境変数から取得、またはデフォルト値を使用)
+ARCHIVE_PROJECT="${GCS_DEST_PROJECT:-u-dake}"
+ARCHIVE_BUCKET="${GCS_ARCHIVE_BUCKET:-archive}"
+DEFAULT_RESTORE_DIR="${GCS_RESTORE_DIR:-/tmp/gcs_restore}"
 
 # カラー定義
 RED='\033[0;31m'
@@ -47,9 +54,9 @@ ${CYAN}GCS アーカイブ復元ツール${NC}
 
 オプション:
   -h, --help              このヘルプを表示
-  -p, --project PROJECT   ソースプロジェクト (デフォルト: u-dake)
-  -b, --bucket BUCKET     アーカイブバケット (デフォルト: archive)
-  -d, --dir DIR          復元先ディレクトリ (デフォルト: /tmp/gcs_restore)
+  -p, --project PROJECT   ソースプロジェクト (デフォルト: ${ARCHIVE_PROJECT})
+  -b, --bucket BUCKET     アーカイブバケット (デフォルト: ${ARCHIVE_BUCKET})
+  -d, --dir DIR          復元先ディレクトリ (デフォルト: ${DEFAULT_RESTORE_DIR})
   -l, --list             アーカイブ一覧を表示して終了
   -a, --archive NAME     指定したアーカイブを使用（対話モードをスキップ）
 
@@ -61,7 +68,7 @@ ${CYAN}GCS アーカイブ復元ツール${NC}
   $0 --list
 
   # 特定のアーカイブを指定ディレクトリに復元
-  $0 --archive yolov8environment_backup_20240115.tar.gz --dir /data/restore
+  $0 --archive ${GCS_SOURCE_PROJECT:-project}_backup_20240115.tar.gz --dir /data/restore
 
 EOF
 }

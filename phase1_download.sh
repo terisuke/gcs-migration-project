@@ -1,17 +1,33 @@
 #!/bin/bash
 
 # ===============================================
-# フェーズ1: yolov8environment からローカルへダウンロード
-# 実行前に: gcloud auth login company@cor-jp.com
+# フェーズ1: ソースプロジェクトからローカルへダウンロード
 # ===============================================
 
 set -euo pipefail
 
+# 環境変数の読み込み
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
+# 環境変数チェック
+if [ -z "${GCS_SOURCE_ACCOUNT:-}" ] || [ -z "${GCS_SOURCE_PROJECT:-}" ] || [ -z "${GCS_LOCAL_BACKUP_DIR:-}" ]; then
+    echo "Error: Required environment variables are not set."
+    echo "Please ensure the following variables are set in .env file:"
+    echo "  - GCS_SOURCE_ACCOUNT"
+    echo "  - GCS_SOURCE_PROJECT"
+    echo "  - GCS_LOCAL_BACKUP_DIR"
+    exit 1
+fi
+
 # 設定
-SOURCE_PROJECT="yolov8environment"
-LOCAL_DOWNLOAD_DIR="/Users/teradakousuke/Library/Mobile Documents/com~apple~CloudDocs/Cor.inc/U-DAKE/GCS"
+SOURCE_PROJECT="${GCS_SOURCE_PROJECT}"
+LOCAL_DOWNLOAD_DIR="${GCS_LOCAL_BACKUP_DIR}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-WORK_DIR="${LOCAL_DOWNLOAD_DIR}/yolov8environment_backup_${TIMESTAMP}"
+WORK_DIR="${LOCAL_DOWNLOAD_DIR}/${SOURCE_PROJECT}_backup_${TIMESTAMP}"
 
 # カラー定義
 RED='\033[0;31m'
@@ -40,7 +56,7 @@ log_step() {
 # メイン処理開始
 clear
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}   フェーズ1: yolov8environment からローカルへダウンロード${NC}"
+echo -e "${BLUE}   フェーズ1: ${SOURCE_PROJECT} からローカルへダウンロード${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # 現在の認証情報確認
@@ -48,11 +64,13 @@ log_step "現在の認証情報を確認"
 CURRENT_ACCOUNT=$(gcloud auth list --filter="status:ACTIVE" --format="value(account)")
 log_info "アクティブなアカウント: ${CURRENT_ACCOUNT}"
 
-if [[ ! "$CURRENT_ACCOUNT" == *"cor-jp.com"* ]]; then
-    log_error "company@cor-jp.com でログインする必要があります"
+if [[ "$CURRENT_ACCOUNT" != "$GCS_SOURCE_ACCOUNT" ]]; then
+    log_error "${GCS_SOURCE_ACCOUNT} でログインする必要があります"
     echo ""
     echo "以下のコマンドを実行してください:"
-    echo "  gcloud auth login company@cor-jp.com"
+    echo "  gcloud auth login ${GCS_SOURCE_ACCOUNT}"
+    echo "  または"
+    echo "  make auth-source"
     echo ""
     exit 1
 fi
@@ -142,7 +160,7 @@ for BUCKET_URL in $BUCKETS; do
     mkdir -p "$BUCKET_DIR"
     
     # ダウンロード実行
-    if gsutil -m cp -r "${BUCKET_URL}**" "$BUCKET_DIR/" 2>&1 | tee -a "$PROGRESS_LOG"; then
+    if gsutil -o "GSUtil:parallel_process_count=1" -m cp -r "${BUCKET_URL}**" "$BUCKET_DIR/" 2>&1 | tee -a "$PROGRESS_LOG"; then
         log_info "✓ 完了: ${BUCKET_NAME}" | tee -a "$PROGRESS_LOG"
         echo "SUCCESS: ${BUCKET_NAME}" >> "${WORK_DIR}/download_status.txt"
     else

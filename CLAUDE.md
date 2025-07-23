@@ -8,95 +8,169 @@ This is a Google Cloud Storage (GCS) migration tool that transfers data between 
 - **Source**: `yolov8environment` project (managed by cor-jp.com)
 - **Destination**: `u-dake` project (managed by u-dake.com)
 
-The project consists of shell scripts that handle a three-phase migration process due to different Google account ownership.
+The project uses environment variables for configuration and Makefile for workflow automation.
 
-## Key Commands
+## Quick Start
 
-### Testing Scripts
 ```bash
-# Make scripts executable
-chmod +x phase1_download.sh phase2_archive.sh phase3_upload.sh advanced_restore.sh
+# 1. Setup environment
+make setup              # Creates .env from .env.example
+# Edit .env with your actual values
 
-# Dry run or test individual functions (scripts don't have built-in test mode)
-# Test by running with modified LOCAL_DOWNLOAD_DIR or commenting out actual operations
+# 2. Run complete migration with 100% success guarantee
+make migrate-robust     # Runs all phases with retry logic
+
+# 3. Check status at any time
+make status            # Shows migration progress and next steps
 ```
 
-### Running the Migration
+## Key Features
+
+### Robust Download with Retry Logic
+- **Empty Bucket Handling**: Automatically detects and skips empty buckets
+- **Retry Mechanism**: Up to 5 retries per bucket with 10-second delays
+- **100% Success Guarantee**: Won't proceed until all buckets are processed
+- **Progress Tracking**: Real-time status updates and comprehensive logging
+
+### Environment-based Configuration
+All hardcoded values replaced with environment variables:
 ```bash
-# Phase 1: Download (requires cor-jp.com account)
-gcloud auth login company@cor-jp.com
-./phase1_download.sh
-
-# Phase 2: Archive (local operation)
-./phase2_archive.sh
-
-# Phase 3: Upload (requires u-dake.com account)
-gcloud auth login company@u-dake.com
-./phase3_upload.sh
+GCS_SOURCE_ACCOUNT      # Source Google account
+GCS_DEST_ACCOUNT        # Destination Google account
+GCS_SOURCE_PROJECT      # Source GCP project ID
+GCS_DEST_PROJECT        # Destination GCP project ID
+GCS_LOCAL_BACKUP_DIR    # Local backup directory
+GCS_ARCHIVE_BUCKET      # Destination bucket name
 ```
 
-### Validation Commands
+### Makefile Automation
+Complete workflow management with single commands:
 ```bash
-# Check current gcloud authentication
-gcloud auth list
-
-# List buckets in source project
-gcloud storage buckets list --project=yolov8environment
-
-# List buckets in destination project
-gcloud storage buckets list --project=u-dake
-
-# Check disk space before running
-df -h
+make migrate-robust     # Complete migration with retry logic
+make robust-download    # Download with empty bucket handling
+make phase2            # Create archives
+make phase3            # Upload to destination
+make status            # Check migration status
 ```
 
 ## Architecture and Code Structure
 
-### Migration Flow
-1. **phase1_download.sh**: Downloads all GCS buckets from yolov8environment to local storage
+### Core Scripts
+
+1. **robust_download.sh**: Enhanced download with retry logic
+   - Detects empty buckets and skips them
+   - Retries failed downloads up to 5 times
+   - Creates comprehensive download summary
+   - Tracks status: SUCCESS, SKIPPED_EMPTY, FAILED
+
+2. **phase1_download.sh**: Standard download script
+   - Downloads all buckets from source project
    - Creates timestamped backup directory
-   - Uses gsutil parallel downloads (-m flag)
-   - Logs progress to download_progress.log
-   - Handles errors gracefully with continue-on-error approach
+   - Uses gsutil with parallel processing disabled for macOS
 
-2. **phase2_archive.sh**: Creates compressed archive of downloaded data
-   - Offers compression options (none, standard, maximum)
-   - Calculates checksums for verification
-   - Provides size estimates before archiving
+3. **phase2_archive.sh**: Archive creation
+   - Auto-detects latest backup from latest_backup_path.txt
+   - Supports multiple compression levels
+   - Creates metadata files with checksums
+   - Handles empty directories (.empty files)
 
-3. **phase3_upload.sh**: Uploads archive to u-dake project
-   - Supports parallel composite uploads for large files
-   - Targets 'archive' bucket by default
-   - Includes retry logic for network interruptions
+4. **phase3_upload.sh**: Upload to destination
+   - Uploads archives to destination bucket
+   - Supports parallel composite uploads
+   - Includes retry logic for large files
 
-4. **advanced_restore.sh**: Interactive restoration tool
-   - Allows selective restoration of specific buckets
-   - Can restore to different project/location
-   - Includes preview mode for safety
+5. **check-migration-status.sh**: Status monitoring
+   - Shows environment variable configuration
+   - Displays authentication status
+   - Reports download progress and statistics
+   - Suggests next actions
+
+### Migration Flow
+
+```
+1. Robust Download (make robust-download)
+   ↓
+   - Check each bucket for content
+   - Skip empty buckets
+   - Retry failed downloads
+   - Create download summary
+   
+2. Archive Creation (make phase2)
+   ↓
+   - Auto-detect latest backup
+   - Compress with selected level
+   - Include empty directories
+   
+3. Upload to Destination (make phase3)
+   ↓
+   - Switch to destination account
+   - Upload archives to GCS
+   - Verify upload success
+```
+
+### Empty Bucket Handling
+
+The robust_download.sh script handles empty buckets gracefully:
+1. Checks if bucket has any objects before download
+2. Creates empty directory with .empty marker file
+3. Records as SKIPPED_EMPTY in status file
+4. Counts as successful processing
 
 ### Key Implementation Details
 
 - **Error Handling**: All scripts use `set -euo pipefail` for strict error handling
-- **Logging**: Color-coded output with log functions (log_info, log_warn, log_error)
-- **Progress Tracking**: Phase 1 creates download_progress.log for resumability
-- **Large File Support**: Uses gsutil parallel composite upload for files >150MB
-- **Authentication**: Requires manual gcloud auth login between phases due to account separation
+- **macOS Compatibility**: Uses `GSUtil:parallel_process_count=1` to avoid multiprocessing errors
+- **Path Spaces**: Properly handles paths with spaces using `set -a; source .env; set +a`
+- **Logging**: Color-coded output with timestamps and status tracking
+- **State Persistence**: Uses latest_backup_path.txt for workflow continuity
 
-### Important Paths and Variables
-- Default download location: `/Users/teradakousuke/Library/Mobile Documents/com~apple~CloudDocs/Cor.inc/U-DAKE/GCS`
-- Archive naming: `yolov8environment_backup_YYYYMMDD_HHMMSS.tar.gz`
-- Target bucket in u-dake: `gs://archive/`
+## Common Issues and Solutions
 
-## Development Guidelines
+### Empty Buckets Causing Failures
+**Problem**: gsutil fails when downloading empty buckets
+**Solution**: robust_download.sh checks for empty buckets and skips them
 
-### Script Modifications
-- Maintain the three-phase separation due to authentication requirements
-- Preserve color-coded logging for user clarity
-- Keep interactive prompts for destructive operations
-- Test with small buckets first before full migration
+### macOS Multiprocessing Errors
+**Problem**: "Exception in thread Thread-3" errors on macOS
+**Solution**: All scripts use `-o "GSUtil:parallel_process_count=1"`
 
-### Common Issues
-- **Disk Space**: Ensure 2x data size available (original + archive)
-- **Authentication**: Must switch accounts between Phase 1 and Phase 3
-- **Network**: Large transfers may timeout - scripts include retry logic
-- **Permissions**: Requires Storage Admin role in both projects
+### Path Spaces in Environment Variables
+**Problem**: Paths with spaces cause export errors
+**Solution**: Use `set -a; source .env; set +a` instead of `export $(grep...)`
+
+### Authentication Between Phases
+**Problem**: Need to switch accounts between download and upload
+**Solution**: Makefile includes auth-check-source and auth-check-dest
+
+## Testing and Validation
+
+```bash
+# Test with single bucket
+make test-bucket BUCKET=bucket-name
+
+# Check current status
+make status
+
+# Verify environment setup
+make check-env
+
+# List buckets in both projects
+make list-source
+make list-dest
+```
+
+## Maintenance Commands
+
+```bash
+# Run lint and typecheck (if configured)
+# Add these commands to CLAUDE.md when available:
+# npm run lint
+# npm run typecheck
+```
+
+## Security Notes
+
+- Never commit .env files (included in .gitignore)
+- Archive bucket must be created before phase3
+- Requires Storage Admin role in both projects
+- Credentials are managed via gcloud auth
